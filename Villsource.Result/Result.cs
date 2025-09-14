@@ -35,7 +35,7 @@ public class Result : IResult
     public IError? GetError() => Error;
 }
 
-public class Result<TValue> : IResult<TValue>
+public class Result<TValue> : IResult<TValue> 
 {
     private readonly bool _isOk;
 
@@ -58,7 +58,7 @@ public class Result<TValue> : IResult<TValue>
 
     public bool IsOk() => _isOk;
     public bool IsFail() => !_isOk;
-    public bool HasValue() => Value != null;
+    public bool HasValue() => !(Value?.Equals(default(TValue)) ?? true);
     public object? GetValueObject() => Value;
     public Type? GetValueType() => HasValue() ? Value!.GetType() : null;
     public IError? GetError() => Error;
