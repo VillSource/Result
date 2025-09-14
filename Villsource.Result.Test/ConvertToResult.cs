@@ -1,6 +1,5 @@
 ﻿using AutoFixture;
 using AutoFixture.AutoMoq;
-using FluentAssertions;
 
 namespace Villsource.Result.Test;
 
