@@ -54,14 +54,22 @@ public class ConvertToValueResult
     {
         Result<int> sut = 1;
         sut.GetValueType().Should().Be(typeof(int));
+        sut.HasValue().Should().BeTrue();
     }
-
     [Fact]
     public void ResultWithNoValue_Should__GotNullType()
     {
         Result<Guid> sut = new Result();
         sut.HasValue().Should().BeFalse();
         sut.Value.Should().Be(default(Guid));
+        sut.GetValueType().Should().BeNull();
+    }
+    [Fact]
+    public void ResultWithNULLValue_Should__GotNullType()
+    {
+        var sut = new Result<string?>(value:null);
+        sut.HasValue().Should().BeFalse();
+        sut.Value.Should().BeNull();
         sut.GetValueType().Should().BeNull();
     }
 
@@ -88,4 +96,5 @@ public class ConvertToValueResult
         
         sut.Value.Should().Be(default(int));
     }
+
 }
