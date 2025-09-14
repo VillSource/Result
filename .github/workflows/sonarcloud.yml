@@ -48,22 +48,38 @@ jobs:
     if: github.event_name == 'pull_request'
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Sonar recommends full history for PR decoration
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
-      - name: Restore dependencies
+          dotnet-version: |
+            8.0.x
+            7.0.x
+            10.0.x
+      #
+      - name: Restore
         run: dotnet restore
+
       - name: Build
-        run: dotnet build --no-restore
-      - name: Test
-        run: dotnet test --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+        run: dotnet build --no-restore -c Release
+
+      - name: Test (collect coverage + trx)
+        run: |
+          # Run all tests, emit OpenCover XML and TRX results per project
+          dotnet test --no-build -c Release \
+            /p:CollectCoverage=true \
+            /p:CoverletOutputFormat=opencover \
+            /p:CoverletOutput=./TestResults/coverage.opencover.xml \
+            --logger "trx;LogFileName=TestResults.trx"
 
       - name: Code Coverage Report
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
-          filename: coverage/**/coverage.cobertura.xml
+          filename: ./TestResults/**/coverage.opencover.xml
           badge: true
           fail_below_min: false
           format: markdown
@@ -72,23 +88,14 @@ jobs:
           indicators: true
           output: both
           thresholds: '60 80'
-
-      - name: Tree
-        run: tree
-      - name: Cat
-        run: cat code-coverage-results.md
-          
-          # - name: Add Coverage PR Comment
-          # uses: marocchino/sticky-pull-request-comment@v2
-          # with:
-        # recreate: true
-        # path: code-coverage-results.md
+      
       - name: Add a comment to the PR
         uses: Libra-foundation/Pull-Request-Comments@V1.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           filename: code-coverage-results.md
+          
   Analysis:
     runs-on: ubuntu-latest
 
@@ -98,39 +105,59 @@ jobs:
         with:
           fetch-depth: 0 # Sonar recommends full history for PR decoration
 
-#      - name: Setup .NET
-#        uses: actions/setup-dotnet@v4
-#        with:
-#          dotnet-version: |
-#            8.0.x
-#            7.0.x
-#            10.0.x
-#
-#      - name: Restore
-#        run: dotnet restore
-#
-#      - name: Build
-#        run: dotnet build --no-restore -c Release
-#
-#      - name: Test (collect coverage + trx)
-#        run: |
-#          # Run all tests, emit OpenCover XML and TRX results per project
-#          dotnet test --no-build -c Release \
-#            /p:CollectCoverage=true \
-#            /p:CoverletOutputFormat=opencover \
-#            /p:CoverletOutput=./TestResults/coverage.opencover.xml \
-#            --logger "trx;LogFileName=TestResults.trx"
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            7.0.x
+            10.0.x
+      #
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test (collect coverage + trx)
+        run: |
+          # Run all tests, emit OpenCover XML and TRX results per project
+          dotnet test --no-build -c Release \
+            /p:CollectCoverage=true \
+            /p:CoverletOutputFormat=opencover \
+            /p:CoverletOutput=./TestResults/coverage.opencover.xml \
+            --logger "trx;LogFileName=TestResults.trx"
+
+      - name: Code Coverage Report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: ./TestResults/**/coverage.opencover.xml
+          badge: true
+          fail_below_min: false
+          format: markdown
+          hide_branch_rate: false
+          hide_complexity: false
+          indicators: true
+          output: both
+          thresholds: '60 80'
+      
+      - name: Add a comment to the PR
+        uses: Libra-foundation/Pull-Request-Comments@V1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          filename: code-coverage-results.md
 
       # OPTIONAL: keep artifacts for inspection
-#      - name: Upload Test Results
-#        if: always()
-#        uses: actions/upload-artifact@v4
-#        with:
-#          retention-days: 7
-#          name: test-results
-#          path: |
-#            **/TestResults/*.trx
-#            **/TestResults/coverage.opencover.xml
+      #      - name: Upload Test Results
+      #        if: always()
+      #        uses: actions/upload-artifact@v4
+      #        with:
+      #          retention-days: 7
+      #          name: test-results
+      #          path: |
+      #            **/TestResults/*.trx
+      #            **/TestResults/coverage.opencover.xml
 
 
       - name: Analyze with SonarCloud
@@ -153,7 +180,7 @@ jobs:
             #-Dsonar.sources= # optional, default is project base directory
             # Comma-separated paths to directories containing test source files.
             #-Dsonar.tests= # optional. For more info about Code Coverage, please refer to https://docs.sonarcloud.io/enriching/test-coverage/overview/
-            # Adds more detail to both client and server-side analysis logs, activating DEBUG mode for the scanner, and adding client-side environment variables and system properties to the server-side log of analysis report processing.
+          # Adds more detail to both client and server-side analysis logs, activating DEBUG mode for the scanner, and adding client-side environment variables and system properties to the server-side log of analysis report processing.
           #-Dsonar.verbose= # optional, default is false
           # When you need the analysis to take place in a directory other than the one from which it was launched, default is .
           projectBaseDir: .
