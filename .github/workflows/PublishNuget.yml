@@ -1,0 +1,70 @@
+name: Publish to GitHub Packages
+
+on:
+  push:
+    tags:
+      - "v*"           # e.g., v1.2.3
+  workflow_dispatch:    # manual run if needed
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            10.0.x
+          cache: true
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Derive version from tag and validate
+        id: ver
+        shell: bash
+        run: |
+          RAW_TAG="${GITHUB_REF_NAME}"      # e.g., v1.2.3
+          VERSION="${RAW_TAG#v}"            # strip leading 'v'
+          echo "Tag: ${RAW_TAG}"
+          echo "Version: ${VERSION}"
+
+          # Basic SemVer (major.minor.patch) check; tweak if you use prerelease/build metadata
+          if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){2}(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag '${RAW_TAG}' is not a valid SemVer. Expected like v1.2.3 or v1.2.3-beta.1"
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Pack (use tag version)
+        run: |
+          dotnet pack --configuration Release --no-build -o ./artifacts \
+            /p:PackageVersion=${{ steps.ver.outputs.version }} \
+            /p:ContinuousIntegrationBuild=true
+
+      - name: Publish to GitHub Packages
+        run: |
+          dotnet nuget push "./artifacts/*.nupkg" \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --api-key "${{ secrets.GITHUB_TOKEN }}" \
+            --skip-duplicate
+
+#      - name: Upload artifacts (optional)
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: nupkg-${{ steps.ver.outputs.version }}
+#          path: artifacts/*.nupkg
+#          if-no-files-found: error
+          # retention-days: 7   # optional
