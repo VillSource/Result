@@ -1,6 +1,6 @@
 namespace Villsource.Result;
 
-public class Result : IResult
+public partial class Result : IResult
 {
     private readonly bool _isOk;
     private readonly object? _value;
@@ -81,4 +81,28 @@ public class Result<TValue> : IResult<TValue>
     }
 
     public static implicit operator Result(Result<TValue> result) => !result.IsFail() ? new Result(result.Value) : new(result.Error);
+}
+
+public partial class Result
+{
+    public static Result Ok() => new();
+    public static Result<T> Ok<T>(T value) => new Result<T>(value);
+    
+    public static Result Fail() => new(error: null);
+    public static Result Fail(params IError[] errors)
+    {
+        ErrorList errorList = [..errors];
+        return new(errorList);
+    }
+    public static Result Fail(params string[] errors)
+    {
+        ErrorList errorList = [];
+        foreach (ErrorReason error in errors)
+            errorList.Add(error);
+        return new(errorList);
+    }
+
+    public static Result Invalid() => new Result(ErrorReasonConstants.INVALID);
+    public static Result NotFound() => new Result(ErrorReasonConstants.NOTFOUND);
+    public static Result NoPrivilege() => new Result(ErrorReasonConstants.PRIVILEGE);
 }
